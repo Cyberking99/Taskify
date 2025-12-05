@@ -23,12 +23,18 @@ contract Taskify is ReentrancyGuard, Ownable {
         uint256 deadline
     );
 
+    event TaskAccepted(
+        uint256 indexed taskId,
+        address indexed worker
+    );
+
     // ------- Task struct & storage -------
     enum TaskState { Open, Assigned, Completed, Cancelled }
 
     struct Task {
         uint256 id;
         address payable creator;
+        address payable worker;  // assigned freelancer
         string title;
         string description;
         string category;
@@ -42,8 +48,11 @@ contract Taskify is ReentrancyGuard, Ownable {
     mapping(uint256 => Task) public tasks;
     uint256 public taskCount;
 
-    // Optional: keep list of creator -> task ids
+    // keep list of creator -> task ids
     mapping(address => uint256[]) public tasksByCreator;
+    
+    // keep list of worker -> task ids
+    mapping(address => uint256[]) public tasksByWorker;
 
     // ------- Modifiers -------
     modifier nonEmptyString(string memory s) {
@@ -93,6 +102,7 @@ contract Taskify is ReentrancyGuard, Ownable {
         Task memory t = Task({
             id: newTaskId,
             creator: payable(msg.sender),
+            worker: payable(address(0)),  // no worker assigned yet
             title: _title,
             description: _description,
             category: _category,
@@ -109,5 +119,27 @@ contract Taskify is ReentrancyGuard, Ownable {
         emit TaskCreated(newTaskId, msg.sender, _title, _category, msg.value, _deadline);
 
         return newTaskId;
+    }
+
+    // ------- acceptTask implementation -------
+    /// @notice Accept an open task and register as the assigned worker
+    /// @param _taskId the ID of the task to accept
+    /// @dev Only callable when task is in Open state and before deadline
+    function acceptTask(uint256 _taskId) external {
+        Task storage task = tasks[_taskId];
+
+        // ---- Checks ----
+        require(task.id != 0, "task does not exist");
+        require(task.state == TaskState.Open, "task is not open");
+        require(block.timestamp < task.deadline, "task deadline has passed");
+        require(msg.sender != task.creator, "creator cannot accept own task");
+
+        // ---- Effects ----
+        task.worker = payable(msg.sender);
+        task.state = TaskState.Assigned;
+        tasksByWorker[msg.sender].push(_taskId);
+
+        // ---- Emit event ----
+        emit TaskAccepted(_taskId, msg.sender);
     }
 }

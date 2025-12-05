@@ -28,8 +28,14 @@ contract Taskify is ReentrancyGuard, Ownable {
         address indexed worker
     );
 
+    event WorkSubmitted(
+        uint256 indexed taskId,
+        address indexed worker,
+        string submissionUrl
+    );
+
     // ------- Task struct & storage -------
-    enum TaskState { Open, Assigned, Completed, Cancelled }
+    enum TaskState { Open, Assigned, Submitted, Completed, Cancelled }
 
     struct Task {
         uint256 id;
@@ -42,6 +48,8 @@ contract Taskify is ReentrancyGuard, Ownable {
         uint256 deadline;   // unix timestamp
         TaskState state;
         uint256 createdAt;
+        string submissionUrl;  // URL or hash reference to submitted work
+        uint256 submittedAt;   // timestamp of submission
     }
 
     // tasks by id
@@ -109,7 +117,9 @@ contract Taskify is ReentrancyGuard, Ownable {
             amount: msg.value,
             deadline: _deadline,
             state: TaskState.Open,
-            createdAt: block.timestamp
+            createdAt: block.timestamp,
+            submissionUrl: "",
+            submittedAt: 0
         });
 
         tasks[newTaskId] = t;
@@ -141,5 +151,31 @@ contract Taskify is ReentrancyGuard, Ownable {
 
         // ---- Emit event ----
         emit TaskAccepted(_taskId, msg.sender);
+    }
+
+    // ------- submitWork implementation -------
+    /// @notice Submit completed work for an assigned task
+    /// @param _taskId the ID of the task
+    /// @param _submissionUrl URL or hash reference to the completed work (e.g., IPFS hash, GitHub link)
+    /// @dev Only the assigned worker can submit work, and only before the deadline
+    function submitWork(uint256 _taskId, string calldata _submissionUrl) 
+        external 
+        nonEmptyString(_submissionUrl) 
+    {
+        Task storage task = tasks[_taskId];
+
+        // ---- Checks ----
+        require(task.id != 0, "task does not exist");
+        require(task.state == TaskState.Assigned, "task is not assigned");
+        require(msg.sender == task.worker, "only assigned worker can submit");
+        require(block.timestamp < task.deadline, "task deadline has passed");
+
+        // ---- Effects ----
+        task.submissionUrl = _submissionUrl;
+        task.submittedAt = block.timestamp;
+        task.state = TaskState.Submitted;
+
+        // ---- Emit event ----
+        emit WorkSubmitted(_taskId, msg.sender, _submissionUrl);
     }
 }

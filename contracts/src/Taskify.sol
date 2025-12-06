@@ -5,64 +5,41 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Taskify is ReentrancyGuard, Ownable {
-    // ------- Configurable parameters -------
-    uint256 public minAmount; // minimum allowed amount for a task (in wei)
+    uint256 public minAmount;
 
-    constructor(uint256 _minAmount)Ownable(msg.sender) {
+    constructor(uint256 _minAmount) Ownable(msg.sender) {
         require(_minAmount > 0, "minAmount must be > 0");
         minAmount = _minAmount;
     }
 
-    // ------- Events -------
-    event TaskCreated(
-        uint256 indexed taskId,
-        address indexed creator,
-        string title,
-        string category,
-        uint256 amount,
-        uint256 deadline
-    );
+    event TaskCreated(uint256 indexed taskId, address indexed creator, string title, string category, uint256 amount, uint256 deadline);
+    event TaskAccepted(uint256 indexed taskId, address indexed worker);
+    event WorkSubmitted(uint256 indexed taskId, address indexed worker, string submissionUrl);
+    // New Event
+    event TaskCompleted(uint256 indexed taskId, address indexed worker, uint256 amountPaid);
 
-    event TaskAccepted(
-        uint256 indexed taskId,
-        address indexed worker
-    );
-
-    event WorkSubmitted(
-        uint256 indexed taskId,
-        address indexed worker,
-        string submissionUrl
-    );
-
-    // ------- Task struct & storage -------
     enum TaskState { Open, Assigned, Submitted, Completed, Cancelled }
 
     struct Task {
         uint256 id;
         address payable creator;
-        address payable worker;  // assigned freelancer
+        address payable worker;
         string title;
         string description;
         string category;
-        uint256 amount;     // amount locked in escrow (wei)
-        uint256 deadline;   // unix timestamp
+        uint256 amount;
+        uint256 deadline;
         TaskState state;
         uint256 createdAt;
-        string submissionUrl;  // URL or hash reference to submitted work
-        uint256 submittedAt;   // timestamp of submission
+        string submissionUrl;
+        uint256 submittedAt;
     }
 
-    // tasks by id
     mapping(uint256 => Task) public tasks;
     uint256 public taskCount;
-
-    // keep list of creator -> task ids
     mapping(address => uint256[]) public tasksByCreator;
-    
-    // keep list of worker -> task ids
     mapping(address => uint256[]) public tasksByWorker;
 
-    // ------- Modifiers -------
     modifier nonEmptyString(string memory s) {
         _nonEmptyString(s);
         _;
@@ -72,45 +49,28 @@ contract Taskify is ReentrancyGuard, Ownable {
         require(bytes(s).length > 0, "string must be non-empty");
     }
 
-    // ------- Admin functions -------
     function setMinAmount(uint256 _minAmount) external onlyOwner {
         require(_minAmount > 0, "minAmount must be > 0");
         minAmount = _minAmount;
     }
 
-    // ------- createTask implementation -------
-    /// @notice Create a new task and lock funds in escrow (msg.value must equal amount)
-    /// @param _title short title of the task (non-empty)
-    /// @param _description longer description (non-empty)
-    /// @param _category category name (non-empty)
-    /// @param _deadline unix timestamp (must be in the future)
-    /// @dev msg.value must equal `_amount` supplied here, ensuring escrow deposit.
     function createTask(
         string calldata _title,
         string calldata _description,
         string calldata _category,
         uint256 _deadline
-    )
-        external
-        payable
-        nonEmptyString(_title)
-        nonEmptyString(_description)
-        nonEmptyString(_category)
-        returns (uint256)
-    {
-        // ---- Checks ----
+    ) external payable nonEmptyString(_title) nonEmptyString(_description) nonEmptyString(_category) returns (uint256) {
         require(msg.value >= minAmount, "sent value below minAmount");
         require(msg.value > 0, "amount must be > 0");
         require(_deadline > block.timestamp, "deadline must be in the future");
 
-        // ---- Effects ----
         taskCount += 1;
         uint256 newTaskId = taskCount;
 
         Task memory t = Task({
             id: newTaskId,
             creator: payable(msg.sender),
-            worker: payable(address(0)),  // no worker assigned yet
+            worker: payable(address(0)),
             title: _title,
             description: _description,
             category: _category,
@@ -125,57 +85,52 @@ contract Taskify is ReentrancyGuard, Ownable {
         tasks[newTaskId] = t;
         tasksByCreator[msg.sender].push(newTaskId);
 
-        // ---- Emit event ----
         emit TaskCreated(newTaskId, msg.sender, _title, _category, msg.value, _deadline);
-
         return newTaskId;
     }
 
-    // ------- acceptTask implementation -------
-    /// @notice Accept an open task and register as the assigned worker
-    /// @param _taskId the ID of the task to accept
-    /// @dev Only callable when task is in Open state and before deadline
     function acceptTask(uint256 _taskId) external {
         Task storage task = tasks[_taskId];
-
-        // ---- Checks ----
         require(task.id != 0, "task does not exist");
         require(task.state == TaskState.Open, "task is not open");
         require(block.timestamp < task.deadline, "task deadline has passed");
         require(msg.sender != task.creator, "creator cannot accept own task");
 
-        // ---- Effects ----
         task.worker = payable(msg.sender);
         task.state = TaskState.Assigned;
         tasksByWorker[msg.sender].push(_taskId);
 
-        // ---- Emit event ----
         emit TaskAccepted(_taskId, msg.sender);
     }
 
-    // ------- submitWork implementation -------
-    /// @notice Submit completed work for an assigned task
-    /// @param _taskId the ID of the task
-    /// @param _submissionUrl URL or hash reference to the completed work (e.g., IPFS hash, GitHub link)
-    /// @dev Only the assigned worker can submit work, and only before the deadline
-    function submitWork(uint256 _taskId, string calldata _submissionUrl) 
-        external 
-        nonEmptyString(_submissionUrl) 
-    {
+    function submitWork(uint256 _taskId, string calldata _submissionUrl) external nonEmptyString(_submissionUrl) {
         Task storage task = tasks[_taskId];
-
-        // ---- Checks ----
         require(task.id != 0, "task does not exist");
         require(task.state == TaskState.Assigned, "task is not assigned");
         require(msg.sender == task.worker, "only assigned worker can submit");
-        require(block.timestamp < task.deadline, "task deadline has passed");
+        // require(block.timestamp < task.deadline, "task deadline has passed"); // Optional: allow late submission if creator accepts
 
-        // ---- Effects ----
         task.submissionUrl = _submissionUrl;
         task.submittedAt = block.timestamp;
         task.state = TaskState.Submitted;
 
-        // ---- Emit event ----
         emit WorkSubmitted(_taskId, msg.sender, _submissionUrl);
+    }
+    
+    function approveWork(uint256 _taskId) external nonReentrant {
+        Task storage task = tasks[_taskId];
+        require(task.id != 0, "task does not exist");
+        require(msg.sender == task.creator, "only creator can approve");
+        require(task.state == TaskState.Submitted, "work not submitted yet");
+
+        // Update state
+        task.state = TaskState.Completed;
+
+        // Effect: Transfer funds to worker
+        uint256 payout = task.amount;
+        (bool success, ) = task.worker.call{value: payout}("");
+        require(success, "transfer failed");
+
+        emit TaskCompleted(_taskId, task.worker, payout);
     }
 }

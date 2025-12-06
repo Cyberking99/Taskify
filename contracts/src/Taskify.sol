@@ -15,10 +15,13 @@ contract Taskify is ReentrancyGuard, Ownable {
     event TaskCreated(uint256 indexed taskId, address indexed creator, string title, string category, uint256 amount, uint256 deadline);
     event TaskAccepted(uint256 indexed taskId, address indexed worker);
     event WorkSubmitted(uint256 indexed taskId, address indexed worker, string submissionUrl);
-    // New Event
     event TaskCompleted(uint256 indexed taskId, address indexed worker, uint256 amountPaid);
+    // New Events
+    event TaskDisputed(uint256 indexed taskId, address indexed initiator);
+    event TaskResolved(uint256 indexed taskId, address indexed winner, uint256 amount);
 
-    enum TaskState { Open, Assigned, Submitted, Completed, Cancelled }
+    // Added Disputed and Resolved states
+    enum TaskState { Open, Assigned, Submitted, Completed, Cancelled, Disputed, Resolved }
 
     struct Task {
         uint256 id;
@@ -108,7 +111,6 @@ contract Taskify is ReentrancyGuard, Ownable {
         require(task.id != 0, "task does not exist");
         require(task.state == TaskState.Assigned, "task is not assigned");
         require(msg.sender == task.worker, "only assigned worker can submit");
-        // require(block.timestamp < task.deadline, "task deadline has passed"); // Optional: allow late submission if creator accepts
 
         task.submissionUrl = _submissionUrl;
         task.submittedAt = block.timestamp;
@@ -116,21 +118,43 @@ contract Taskify is ReentrancyGuard, Ownable {
 
         emit WorkSubmitted(_taskId, msg.sender, _submissionUrl);
     }
-    
+
     function approveWork(uint256 _taskId) external nonReentrant {
         Task storage task = tasks[_taskId];
         require(task.id != 0, "task does not exist");
         require(msg.sender == task.creator, "only creator can approve");
         require(task.state == TaskState.Submitted, "work not submitted yet");
 
-        // Update state
         task.state = TaskState.Completed;
 
-        // Effect: Transfer funds to worker
         uint256 payout = task.amount;
         (bool success, ) = task.worker.call{value: payout}("");
         require(success, "transfer failed");
 
         emit TaskCompleted(_taskId, task.worker, payout);
+    }
+
+    function raiseDispute(uint256 _taskId) external {
+        Task storage task = tasks[_taskId];
+        require(task.id != 0, "task does not exist");
+        require(msg.sender == task.creator || msg.sender == task.worker, "only parties involved can dispute");
+        require(task.state == TaskState.Assigned || task.state == TaskState.Submitted, "cannot dispute in current state");
+
+        task.state = TaskState.Disputed;
+        emit TaskDisputed(_taskId, msg.sender);
+    }
+    
+    function resolveDispute(uint256 _taskId, address payable _winner) external onlyOwner nonReentrant {
+        Task storage task = tasks[_taskId];
+        require(task.state == TaskState.Disputed, "task not disputed");
+        require(_winner == task.creator || _winner == task.worker, "winner must be creator or worker");
+
+        task.state = TaskState.Resolved;
+        
+        uint256 payout = task.amount;
+        (bool success, ) = _winner.call{value: payout}("");
+        require(success, "transfer failed");
+
+        emit TaskResolved(_taskId, _winner, payout);
     }
 }

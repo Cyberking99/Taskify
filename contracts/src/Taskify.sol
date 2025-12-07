@@ -7,12 +7,16 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 contract Taskify is ReentrancyGuard, Ownable {
     uint256 public minAmount;
     
-    // New: Reputation Mapping
+    // Config: Platform Fee in Basis Points (100 = 1%)
+    uint256 public platformFeeBps; 
+    
+    // Mapping: User Reputation Score
     mapping(address => uint256) public reputation;
 
-    constructor(uint256 _minAmount) Ownable(msg.sender) {
+    constructor(uint256 _minAmount, uint256 _feeBps) Ownable(msg.sender) {
         require(_minAmount > 0, "minAmount must be > 0");
         minAmount = _minAmount;
+        platformFeeBps = _feeBps;
     }
 
     event TaskCreated(uint256 indexed taskId, address indexed creator, string title, string category, uint256 amount, uint256 deadline);
@@ -22,8 +26,8 @@ contract Taskify is ReentrancyGuard, Ownable {
     event TaskDisputed(uint256 indexed taskId, address indexed initiator);
     event TaskResolved(uint256 indexed taskId, address indexed winner, uint256 amount);
     event TaskCancelled(uint256 indexed taskId, address indexed creator, uint256 refundedAmount);
-    // New Event
     event ReputationIncreased(address indexed user, uint256 newScore);
+    event PlatformFeeChanged(uint256 newFeeBps);
 
     enum TaskState { Open, Assigned, Submitted, Completed, Cancelled, Disputed, Resolved }
 
@@ -56,11 +60,19 @@ contract Taskify is ReentrancyGuard, Ownable {
         require(bytes(s).length > 0, "string must be non-empty");
     }
 
+    // ------- Admin Functions -------
     function setMinAmount(uint256 _minAmount) external onlyOwner {
         require(_minAmount > 0, "minAmount must be > 0");
         minAmount = _minAmount;
     }
 
+    function setPlatformFee(uint256 _feeBps) external onlyOwner {
+        require(_feeBps <= 1000, "fee cannot exceed 10%"); // Safety cap
+        platformFeeBps = _feeBps;
+        emit PlatformFeeChanged(_feeBps);
+    }
+
+    // ------- Core Functions -------
     function createTask(
         string calldata _title,
         string calldata _description,
@@ -123,7 +135,6 @@ contract Taskify is ReentrancyGuard, Ownable {
         emit WorkSubmitted(_taskId, msg.sender, _submissionUrl);
     }
 
-    // Updated with Reputation Logic
     function approveWork(uint256 _taskId) external nonReentrant {
         Task storage task = tasks[_taskId];
         require(task.id != 0, "task does not exist");
@@ -136,9 +147,19 @@ contract Taskify is ReentrancyGuard, Ownable {
         reputation[task.worker] += 1;
         emit ReputationIncreased(task.worker, reputation[task.worker]);
 
-        uint256 payout = task.amount;
+        // Calculate Fee
+        uint256 fee = (task.amount * platformFeeBps) / 10000;
+        uint256 payout = task.amount - fee;
+
+        // Pay Worker
         (bool success, ) = task.worker.call{value: payout}("");
-        require(success, "transfer failed");
+        require(success, "transfer to worker failed");
+
+        // Pay Fee to Owner (Platform)
+        if (fee > 0) {
+            (bool feeSuccess, ) = payable(owner()).call{value: fee}("");
+            require(feeSuccess, "transfer of fee failed");
+        }
 
         emit TaskCompleted(_taskId, task.worker, payout);
     }
@@ -175,6 +196,7 @@ contract Taskify is ReentrancyGuard, Ownable {
 
         task.state = TaskState.Resolved;
         
+        // In this simple version, we pay out the full amount to the winner without fee deduction
         uint256 payout = task.amount;
         (bool success, ) = _winner.call{value: payout}("");
         require(success, "transfer failed");

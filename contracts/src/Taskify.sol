@@ -16,11 +16,11 @@ contract Taskify is ReentrancyGuard, Ownable {
     event TaskAccepted(uint256 indexed taskId, address indexed worker);
     event WorkSubmitted(uint256 indexed taskId, address indexed worker, string submissionUrl);
     event TaskCompleted(uint256 indexed taskId, address indexed worker, uint256 amountPaid);
-    // New Events
     event TaskDisputed(uint256 indexed taskId, address indexed initiator);
     event TaskResolved(uint256 indexed taskId, address indexed winner, uint256 amount);
+    // New Event
+    event TaskCancelled(uint256 indexed taskId, address indexed creator, uint256 refundedAmount);
 
-    // Added Disputed and Resolved states
     enum TaskState { Open, Assigned, Submitted, Completed, Cancelled, Disputed, Resolved }
 
     struct Task {
@@ -134,6 +134,24 @@ contract Taskify is ReentrancyGuard, Ownable {
         emit TaskCompleted(_taskId, task.worker, payout);
     }
 
+    // ------- NEW IMPLEMENTATION: Cancel Task -------
+    
+    /// @notice Allows creator to cancel task and retrieve funds if it is still Open
+    function cancelTask(uint256 _taskId) external nonReentrant {
+        Task storage task = tasks[_taskId];
+        require(task.id != 0, "task does not exist");
+        require(msg.sender == task.creator, "only creator can cancel");
+        require(task.state == TaskState.Open, "task must be open to cancel");
+        
+        task.state = TaskState.Cancelled;
+        
+        uint256 refund = task.amount;
+        (bool success, ) = task.creator.call{value: refund}("");
+        require(success, "refund failed");
+        
+        emit TaskCancelled(_taskId, msg.sender, refund);
+    }
+
     function raiseDispute(uint256 _taskId) external {
         Task storage task = tasks[_taskId];
         require(task.id != 0, "task does not exist");
@@ -143,7 +161,7 @@ contract Taskify is ReentrancyGuard, Ownable {
         task.state = TaskState.Disputed;
         emit TaskDisputed(_taskId, msg.sender);
     }
-    
+
     function resolveDispute(uint256 _taskId, address payable _winner) external onlyOwner nonReentrant {
         Task storage task = tasks[_taskId];
         require(task.state == TaskState.Disputed, "task not disputed");

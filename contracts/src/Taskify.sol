@@ -6,6 +6,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Taskify is ReentrancyGuard, Ownable {
     uint256 public minAmount;
+    
+    // New: Reputation Mapping
+    mapping(address => uint256) public reputation;
 
     constructor(uint256 _minAmount) Ownable(msg.sender) {
         require(_minAmount > 0, "minAmount must be > 0");
@@ -18,8 +21,9 @@ contract Taskify is ReentrancyGuard, Ownable {
     event TaskCompleted(uint256 indexed taskId, address indexed worker, uint256 amountPaid);
     event TaskDisputed(uint256 indexed taskId, address indexed initiator);
     event TaskResolved(uint256 indexed taskId, address indexed winner, uint256 amount);
-    // New Event
     event TaskCancelled(uint256 indexed taskId, address indexed creator, uint256 refundedAmount);
+    // New Event
+    event ReputationIncreased(address indexed user, uint256 newScore);
 
     enum TaskState { Open, Assigned, Submitted, Completed, Cancelled, Disputed, Resolved }
 
@@ -119,6 +123,7 @@ contract Taskify is ReentrancyGuard, Ownable {
         emit WorkSubmitted(_taskId, msg.sender, _submissionUrl);
     }
 
+    // Updated with Reputation Logic
     function approveWork(uint256 _taskId) external nonReentrant {
         Task storage task = tasks[_taskId];
         require(task.id != 0, "task does not exist");
@@ -127,6 +132,10 @@ contract Taskify is ReentrancyGuard, Ownable {
 
         task.state = TaskState.Completed;
 
+        // Increase Worker Reputation
+        reputation[task.worker] += 1;
+        emit ReputationIncreased(task.worker, reputation[task.worker]);
+
         uint256 payout = task.amount;
         (bool success, ) = task.worker.call{value: payout}("");
         require(success, "transfer failed");
@@ -134,9 +143,6 @@ contract Taskify is ReentrancyGuard, Ownable {
         emit TaskCompleted(_taskId, task.worker, payout);
     }
 
-    // ------- NEW IMPLEMENTATION: Cancel Task -------
-    
-    /// @notice Allows creator to cancel task and retrieve funds if it is still Open
     function cancelTask(uint256 _taskId) external nonReentrant {
         Task storage task = tasks[_taskId];
         require(task.id != 0, "task does not exist");

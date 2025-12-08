@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
 
 // --- Icons (Inline SVGs to ensure zero-dependency rendering) ---
 
@@ -371,14 +372,11 @@ const Footer = () => {
 // --- Main App ---
 
 export default function Home() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [address, setAddress] = useState("");
+  const { open } = useAppKit();
+  const { address, isConnected } = useAppKitAccount();
 
-  // Simulated Web3 Login
   const handleConnect = () => {
-    // In a real app, this calls useConnect() from Wagmi
-    setIsConnected(true);
-    setAddress("0x71C...9A21");
+    open();
   };
 
   return (
@@ -386,7 +384,7 @@ export default function Home() {
       <Navbar
         isConnected={isConnected}
         connectWallet={handleConnect}
-        address={address}
+        address={address || ""}
       />
 
       <main>

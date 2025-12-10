@@ -97,10 +97,10 @@ const TaskList = () => {
             <button
               key={cat}
               onClick={() => setFilterCategory(cat)}
-              className={`px - 4 py - 2 rounded - full text - sm font - medium whitespace - nowrap transition - colors ${filterCategory === cat
+              className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filterCategory === cat
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-                } `}
+                }`}
             >
               {cat}
             </button>

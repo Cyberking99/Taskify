@@ -1,4 +1,3 @@
-```
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -41,14 +40,14 @@ const TaskList = () => {
   const { data: tasksData, isLoading: isTasksLoading } = useReadContracts({
     contracts: tasksConfig,
     query: {
-        enabled: !!taskCount,
+      enabled: !!taskCount,
     }
   });
 
   // 4. Process and filter tasks
   const filteredTasks = React.useMemo(() => {
     if (!tasksData) return [];
-    
+
     return tasksData
       .map((result: any) => result.result) // Extract result from wagmi response
       .filter((task: any) => task) // Filter out nulls/undefined
@@ -69,8 +68,8 @@ const TaskList = () => {
       // Filter by Category
       .filter((task: any) => filterCategory === 'All' || task.category === filterCategory)
       // Filter by Search
-      .filter((task: any) => 
-        task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      .filter((task: any) =>
+        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.description.toLowerCase().includes(searchQuery.toLowerCase())
       )
       // Sort by newest first
@@ -98,11 +97,10 @@ const TaskList = () => {
             <button
               key={cat}
               onClick={() => setFilterCategory(cat)}
-              className={`px - 4 py - 2 rounded - full text - sm font - medium whitespace - nowrap transition - colors ${
-    filterCategory === cat
-        ? 'bg-blue-600 text-white'
-        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-} `}
+              className={`px - 4 py - 2 rounded - full text - sm font - medium whitespace - nowrap transition - colors ${filterCategory === cat
+                ? 'bg-blue-600 text-white'
+                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                } `}
             >
               {cat}
             </button>
@@ -118,8 +116,8 @@ const TaskList = () => {
       ) : filteredTasks.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTasks.map((task: any) => (
-              <TaskCard key={Number(task.id)} {...task} />
-            ))}
+            <TaskCard key={Number(task.id)} {...task} />
+          ))}
         </div>
       ) : (
         <div className="text-center py-20 bg-slate-800/20 rounded-2xl border border-slate-800 border-dashed">
@@ -131,4 +129,3 @@ const TaskList = () => {
 };
 
 export default TaskList;
-```

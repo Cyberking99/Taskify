@@ -3,8 +3,10 @@ pragma solidity ^0.8.13;
 
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Taskify is ReentrancyGuard, Ownable {
+    IERC20 public paymentToken;
     uint256 public minAmount;
     
     // Config: Platform Fee in Basis Points (100 = 1%)
@@ -13,8 +15,10 @@ contract Taskify is ReentrancyGuard, Ownable {
     // Mapping: User Reputation Score
     mapping(address => uint256) public reputation;
 
-    constructor(uint256 _minAmount, uint256 _feeBps) Ownable(msg.sender) {
+    constructor(address _paymentToken, uint256 _minAmount, uint256 _feeBps) Ownable(msg.sender) {
+        require(_paymentToken != address(0), "invalid token address");
         require(_minAmount > 0, "minAmount must be > 0");
+        paymentToken = IERC20(_paymentToken);
         minAmount = _minAmount;
         platformFeeBps = _feeBps;
     }
@@ -33,8 +37,8 @@ contract Taskify is ReentrancyGuard, Ownable {
 
     struct Task {
         uint256 id;
-        address payable creator;
-        address payable worker;
+        address creator;
+        address worker;
         string title;
         string description;
         string category;
@@ -77,23 +81,26 @@ contract Taskify is ReentrancyGuard, Ownable {
         string calldata _title,
         string calldata _description,
         string calldata _category,
+        uint256 _amount,
         uint256 _deadline
-    ) external payable nonEmptyString(_title) nonEmptyString(_description) nonEmptyString(_category) returns (uint256) {
-        require(msg.value >= minAmount, "sent value below minAmount");
-        require(msg.value > 0, "amount must be > 0");
+    ) external nonEmptyString(_title) nonEmptyString(_description) nonEmptyString(_category) returns (uint256) {
+        require(_amount >= minAmount, "amount below minAmount");
         require(_deadline > block.timestamp, "deadline must be in the future");
+
+        // Transfer tokens from creator to contract
+        require(paymentToken.transferFrom(msg.sender, address(this), _amount), "transfer failed");
 
         taskCount += 1;
         uint256 newTaskId = taskCount;
 
         Task memory t = Task({
             id: newTaskId,
-            creator: payable(msg.sender),
-            worker: payable(address(0)),
+            creator: msg.sender,
+            worker: address(0),
             title: _title,
             description: _description,
             category: _category,
-            amount: msg.value,
+            amount: _amount,
             deadline: _deadline,
             state: TaskState.Open,
             createdAt: block.timestamp,
@@ -104,7 +111,7 @@ contract Taskify is ReentrancyGuard, Ownable {
         tasks[newTaskId] = t;
         tasksByCreator[msg.sender].push(newTaskId);
 
-        emit TaskCreated(newTaskId, msg.sender, _title, _category, msg.value, _deadline);
+        emit TaskCreated(newTaskId, msg.sender, _title, _category, _amount, _deadline);
         return newTaskId;
     }
 
@@ -115,7 +122,7 @@ contract Taskify is ReentrancyGuard, Ownable {
         require(block.timestamp < task.deadline, "task deadline has passed");
         require(msg.sender != task.creator, "creator cannot accept own task");
 
-        task.worker = payable(msg.sender);
+        task.worker = msg.sender;
         task.state = TaskState.Assigned;
         tasksByWorker[msg.sender].push(_taskId);
 
@@ -152,13 +159,11 @@ contract Taskify is ReentrancyGuard, Ownable {
         uint256 payout = task.amount - fee;
 
         // Pay Worker
-        (bool success, ) = task.worker.call{value: payout}("");
-        require(success, "transfer to worker failed");
+        require(paymentToken.transfer(task.worker, payout), "transfer to worker failed");
 
         // Pay Fee to Owner (Platform)
         if (fee > 0) {
-            (bool feeSuccess, ) = payable(owner()).call{value: fee}("");
-            require(feeSuccess, "transfer of fee failed");
+            require(paymentToken.transfer(owner(), fee), "transfer of fee failed");
         }
 
         emit TaskCompleted(_taskId, task.worker, payout);
@@ -173,8 +178,7 @@ contract Taskify is ReentrancyGuard, Ownable {
         task.state = TaskState.Cancelled;
         
         uint256 refund = task.amount;
-        (bool success, ) = task.creator.call{value: refund}("");
-        require(success, "refund failed");
+        require(paymentToken.transfer(task.creator, refund), "refund failed");
         
         emit TaskCancelled(_taskId, msg.sender, refund);
     }
@@ -189,7 +193,7 @@ contract Taskify is ReentrancyGuard, Ownable {
         emit TaskDisputed(_taskId, msg.sender);
     }
 
-    function resolveDispute(uint256 _taskId, address payable _winner) external onlyOwner nonReentrant {
+    function resolveDispute(uint256 _taskId, address _winner) external onlyOwner nonReentrant {
         Task storage task = tasks[_taskId];
         require(task.state == TaskState.Disputed, "task not disputed");
         require(_winner == task.creator || _winner == task.worker, "winner must be creator or worker");
@@ -198,8 +202,7 @@ contract Taskify is ReentrancyGuard, Ownable {
         
         // In this simple version, we pay out the full amount to the winner without fee deduction
         uint256 payout = task.amount;
-        (bool success, ) = _winner.call{value: payout}("");
-        require(success, "transfer failed");
+        require(paymentToken.transfer(_winner, payout), "transfer failed");
 
         emit TaskResolved(_taskId, _winner, payout);
     }

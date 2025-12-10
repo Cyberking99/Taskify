@@ -1,42 +1,18 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
-
-// --- Icons (Inline SVGs to ensure zero-dependency rendering) ---
-
-const WalletIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" /></svg>
-);
-
-const SearchIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-);
-
-const CheckCircleIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><path d="M22 4 12 14.01l-3-3" /></svg>
-);
-
-const ShieldCheckIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></svg>
-);
-
-const ZapIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
-);
-
-const ChevronRightIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m9 18 6-6-6-6" /></svg>
-);
-
-const PlusIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M5 12h14" /><path d="M12 5v14" /></svg>
-);
-
-const EthereumIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M6 12h12M6 12l6-6m-6 6l6 6" /></svg> // Simplified
-);
-
+import Navbar from '@/components/Navbar';
+import Button from '@/components/ui/Button';
+import {
+  SearchIcon,
+  CheckCircleIcon,
+  ShieldCheckIcon,
+  ZapIcon,
+  ChevronRightIcon,
+  PlusIcon
+} from '@/components/Icons';
+import Link from 'next/link';
 
 // --- Mock Data ---
 
@@ -81,39 +57,6 @@ const FEATURED_TASKS = [
 
 // --- Components ---
 
-const Button = ({
-  children,
-  variant = 'primary',
-  className = '',
-  onClick,
-  icon: Icon
-}: {
-  children?: React.ReactNode,
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost',
-  className?: string,
-  onClick?: () => void,
-  icon?: React.ElementType
-}) => {
-  const baseStyles = "inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900";
-
-  const variants = {
-    primary: "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/20 focus:ring-blue-500",
-    secondary: "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-900/20 focus:ring-violet-500",
-    outline: "border border-slate-700 text-slate-300 hover:bg-slate-800 focus:ring-slate-500",
-    ghost: "text-slate-400 hover:text-white hover:bg-slate-800/50"
-  };
-
-  return (
-    <button
-      className={`${baseStyles} ${variants[variant]} ${className}`}
-      onClick={onClick}
-    >
-      {Icon && <Icon className="w-4 h-4 mr-2" />}
-      {children}
-    </button>
-  );
-};
-
 const Badge = ({ children, color = 'blue' }: { children?: React.ReactNode, color?: 'blue' | 'green' | 'purple' | 'orange' }) => {
   const colors = {
     blue: "bg-blue-900/30 text-blue-400 border-blue-800",
@@ -126,49 +69,6 @@ const Badge = ({ children, color = 'blue' }: { children?: React.ReactNode, color
     <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${colors[color]}`}>
       {children}
     </span>
-  );
-};
-
-// --- Navbar Component ---
-
-const Navbar = ({ isConnected, connectWallet, address }: { isConnected: boolean, connectWallet: () => void, address: string }) => {
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex items-center gap-2 cursor-pointer">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-500 to-violet-600 flex items-center justify-center">
-              <ZapIcon className="text-white w-5 h-5" />
-            </div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-              Taskify
-            </span>
-          </div>
-
-          {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Find Work</a>
-            <a href="#" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Post a Job</a>
-            <a href="#" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">How it Works</a>
-          </div>
-
-          {/* Connect Button */}
-          <div>
-            {isConnected ? (
-              <Button variant="outline" className="border-blue-500/30 text-blue-400 bg-blue-500/10">
-                <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
-                {address.slice(0, 6)}...{address.slice(-4)}
-              </Button>
-            ) : (
-              <Button onClick={connectWallet} icon={WalletIcon}>
-                Connect Wallet
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </nav>
   );
 };
 
@@ -199,9 +99,11 @@ const Hero = () => {
           <Button className="w-full sm:w-auto h-12 px-8 text-base" icon={SearchIcon}>
             Find a Job
           </Button>
-          <Button variant="outline" className="w-full sm:w-auto h-12 px-8 text-base" icon={PlusIcon}>
-            Post a Task
-          </Button>
+          <Link href="/create-task">
+            <Button variant="outline" className="w-full sm:w-auto h-12 px-8 text-base" icon={PlusIcon}>
+              Post a Task
+            </Button>
+          </Link>
         </div>
 
         {/* Stats */}
@@ -324,13 +226,13 @@ const FeaturedTasks = () => {
           ))}
 
           {/* CTA Card */}
-          <div className="rounded-xl p-6 border border-dashed border-slate-700 flex flex-col items-center justify-center text-center bg-slate-900/50 hover:bg-slate-800/50 transition-colors group cursor-pointer">
+          <Link href="/create-task" className="rounded-xl p-6 border border-dashed border-slate-700 flex flex-col items-center justify-center text-center bg-slate-900/50 hover:bg-slate-800/50 transition-colors group cursor-pointer">
             <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mb-4 group-hover:bg-blue-600 transition-colors">
               <PlusIcon className="w-6 h-6 text-slate-400 group-hover:text-white" />
             </div>
             <h3 className="text-lg font-semibold text-white">Post a Job</h3>
             <p className="text-slate-400 text-sm mt-1">Need something done?</p>
-          </div>
+          </Link>
         </div>
 
         <div className="mt-8 text-center sm:hidden">
@@ -372,20 +274,9 @@ const Footer = () => {
 // --- Main App ---
 
 export default function Home() {
-  const { open } = useAppKit();
-  const { address, isConnected } = useAppKitAccount();
-
-  const handleConnect = () => {
-    open();
-  };
-
   return (
     <div className="min-h-screen bg-slate-900 text-slate-50 selection:bg-blue-500/30">
-      <Navbar
-        isConnected={isConnected}
-        connectWallet={handleConnect}
-        address={address || ""}
-      />
+      <Navbar />
 
       <main>
         <Hero />

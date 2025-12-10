@@ -1,0 +1,158 @@
+"use client";
+
+import React, { useState } from 'react';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseEther } from 'viem';
+import Input from './ui/Input';
+import Textarea from './ui/Textarea';
+import Select from './ui/Select';
+import Button from './ui/Button';
+import { PlusIcon } from './Icons';
+
+// Placeholder ABI - Replace with actual ABI when available
+const CONTRACT_ABI = [
+    {
+        "inputs": [
+            { "internalType": "string", "name": "_title", "type": "string" },
+            { "internalType": "string", "name": "_description", "type": "string" },
+            { "internalType": "string", "name": "_category", "type": "string" },
+            { "internalType": "uint256", "name": "_deadline", "type": "uint256" }
+        ],
+        "name": "createTask",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function"
+    }
+] as const;
+
+// Placeholder Address - Replace with actual address
+const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const CATEGORIES = [
+    { value: 'Development', label: 'Development' },
+    { value: 'Design', label: 'Design' },
+    { value: 'Marketing', label: 'Marketing' },
+    { value: 'Writing', label: 'Writing' },
+    { value: 'Other', label: 'Other' },
+];
+
+const CreateTaskForm = () => {
+    const [formData, setFormData] = useState({
+        title: '',
+        description: '',
+        category: 'Development',
+        budget: '',
+        deadline: '',
+    });
+
+    const { data: hash, isPending, writeContract } = useWriteContract();
+    const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+        hash,
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!formData.title || !formData.description || !formData.budget || !formData.deadline) {
+            alert("Please fill in all fields");
+            return;
+        }
+
+        try {
+            const deadlineTimestamp = Math.floor(new Date(formData.deadline).getTime() / 1000);
+
+            writeContract({
+                address: CONTRACT_ADDRESS,
+                abi: CONTRACT_ABI,
+                functionName: 'createTask',
+                args: [formData.title, formData.description, formData.category, BigInt(deadlineTimestamp)],
+                value: parseEther(formData.budget),
+            });
+        } catch (error) {
+            console.error("Error creating task:", error);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-6 bg-slate-800/40 p-8 rounded-2xl border border-slate-700/50 backdrop-blur-sm">
+            <div className="grid grid-cols-1 gap-6">
+                <Input
+                    label="Task Title"
+                    name="title"
+                    placeholder="e.g. Build a React Landing Page"
+                    value={formData.title}
+                    onChange={handleChange}
+                    required
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Select
+                        label="Category"
+                        name="category"
+                        options={CATEGORIES}
+                        value={formData.category}
+                        onChange={handleChange}
+                    />
+                    <Input
+                        label="Budget (cUSD)"
+                        name="budget"
+                        type="number"
+                        step="0.01"
+                        placeholder="5"
+                        value={formData.budget}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
+
+                <Input
+                    label="Deadline"
+                    name="deadline"
+                    type="datetime-local"
+                    value={formData.deadline}
+                    onChange={handleChange}
+                    required
+                />
+
+                <Textarea
+                    label="Description"
+                    name="description"
+                    placeholder="Describe the task in detail..."
+                    value={formData.description}
+                    onChange={handleChange}
+                    required
+                    rows={5}
+                />
+            </div>
+
+            <div className="pt-4">
+                <Button
+                    type="submit"
+                    className="w-full h-12 text-base"
+                    disabled={isPending || isConfirming}
+                    icon={PlusIcon}
+                >
+                    {isPending ? 'Confirming...' : isConfirming ? 'Processing...' : 'Create Task & Deposit Funds'}
+                </Button>
+            </div>
+
+            {isConfirmed && (
+                <div className="p-4 bg-green-900/20 border border-green-800 rounded-lg text-green-400 text-center">
+                    Task created successfully!
+                </div>
+            )}
+            {hash && (
+                <div className="text-xs text-slate-500 text-center break-all">
+                    Transaction Hash: {hash}
+                </div>
+            )}
+        </form>
+    );
+};
+
+export default CreateTaskForm;

@@ -31,7 +31,12 @@ const Navbar = () => {
                     {/* Desktop Nav */}
                     <div className="hidden md:flex items-center gap-8">
                         <Link href="#" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Find Work</Link>
-                        <Link href="/create-task" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Post a Job</Link>
+                        <Link href="/browse" className="text-slate-300 hover:text-white transition-colors">
+                            Browse Tasks
+                        </Link>
+                        <Link href="/create-task" className="text-slate-300 hover:text-white transition-colors">
+                            Post a Task
+                        </Link>
                         <Link href="#" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">How it Works</Link>
                     </div>
 

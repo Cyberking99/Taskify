@@ -12,7 +12,7 @@ contract DeployScript is Script {
     function run() public {
         vm.startBroadcast();
 
-        taskify = new Taskify(250);
+        taskify = new Taskify(5, 1);
 
         vm.stopBroadcast();
     }

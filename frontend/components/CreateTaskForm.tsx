@@ -8,25 +8,8 @@ import Textarea from './ui/Textarea';
 import Select from './ui/Select';
 import Button from './ui/Button';
 import { PlusIcon } from './Icons';
-
-// Placeholder ABI - Replace with actual ABI when available
-const CONTRACT_ABI = [
-    {
-        "inputs": [
-            { "internalType": "string", "name": "_title", "type": "string" },
-            { "internalType": "string", "name": "_description", "type": "string" },
-            { "internalType": "string", "name": "_category", "type": "string" },
-            { "internalType": "uint256", "name": "_deadline", "type": "uint256" }
-        ],
-        "name": "createTask",
-        "outputs": [],
-        "stateMutability": "payable",
-        "type": "function"
-    }
-] as const;
-
-// Placeholder Address - Replace with actual address
-const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000";
+import ABI from '@/lib/abi.json';
+import { CONTRACT_ADDRESS } from '@/lib/constants';
 
 const CATEGORIES = [
     { value: 'Development', label: 'Development' },
@@ -56,6 +39,7 @@ const CreateTaskForm = () => {
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
+        console.log(formData);
         e.preventDefault();
 
         if (!formData.title || !formData.description || !formData.budget || !formData.deadline) {
@@ -68,7 +52,7 @@ const CreateTaskForm = () => {
 
             writeContract({
                 address: CONTRACT_ADDRESS,
-                abi: CONTRACT_ABI,
+                abi: ABI,
                 functionName: 'createTask',
                 args: [formData.title, formData.description, formData.category, BigInt(deadlineTimestamp)],
                 value: parseEther(formData.budget),
@@ -136,6 +120,7 @@ const CreateTaskForm = () => {
                     className="w-full h-12 text-base"
                     disabled={isPending || isConfirming}
                     icon={PlusIcon}
+                    onClick={handleSubmit}
                 >
                     {isPending ? 'Confirming...' : isConfirming ? 'Processing...' : 'Create Task & Deposit Funds'}
                 </Button>

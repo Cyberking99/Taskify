@@ -5,7 +5,7 @@ import { useReadContract, useReadContracts } from 'wagmi';
 import TaskCard from './TaskCard';
 import ABI from '@/lib/abi.json';
 import { CONTRACT_ADDRESS } from '@/lib/constants';
-import { MagnifyingGlassIcon } from './Icons';
+import { SearchIcon } from './Icons';
 
 const CATEGORIES = ['All', 'Development', 'Design', 'Marketing', 'Writing', 'Other'];
 
@@ -81,7 +81,7 @@ const TaskList = () => {
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div className="relative w-full md:w-96">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="h-5 w-5 text-slate-500" />
+            <SearchIcon className="h-5 w-5 text-slate-500" />
           </div>
           <input
             type="text"

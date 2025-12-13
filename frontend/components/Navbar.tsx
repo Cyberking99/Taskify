@@ -2,16 +2,22 @@
 
 import React from 'react';
 import { useAppKit, useAppKitAccount } from '@reown/appkit/react';
+import { useDisconnect } from 'wagmi';
 import Button from './ui/Button';
-import { ZapIcon, WalletIcon } from './Icons';
+import { ZapIcon, WalletIcon, LogOutIcon } from './Icons';
 import Link from 'next/link';
 
 const Navbar = () => {
     const { open } = useAppKit();
     const { address, isConnected } = useAppKitAccount();
+    const { disconnect } = useDisconnect();
 
     const handleConnect = () => {
         open();
+    };
+
+    const handleDisconnect = async () => {
+        await disconnect();
     };
 
     return (
@@ -43,10 +49,24 @@ const Navbar = () => {
                     {/* Connect Button */}
                     <div>
                         {isConnected ? (
-                            <Button variant="outline" className="border-blue-500/30 text-blue-400 bg-blue-500/10">
-                                <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
-                                {address?.slice(0, 6)}...{address?.slice(-4)}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    onClick={() => open()}
+                                    variant="outline"
+                                    className="border-blue-500/30 text-blue-400 bg-blue-500/10"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+                                    {address?.slice(0, 6)}...{address?.slice(-4)}
+                                </Button>
+                                <Button
+                                    onClick={handleDisconnect}
+                                    variant="ghost"
+                                    className="text-slate-400 hover:text-red-400 p-2"
+                                    title="Disconnect Wallet"
+                                >
+                                    <LogOutIcon className="w-5 h-5" />
+                                </Button>
+                            </div>
                         ) : (
                             <Button onClick={handleConnect} icon={WalletIcon}>
                                 Connect Wallet

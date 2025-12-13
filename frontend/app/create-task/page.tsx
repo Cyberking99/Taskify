@@ -1,15 +1,13 @@
 "use client";
 
 import React from 'react';
-import Navbar from '@/components/Navbar';
+import PageLayout from '@/components/PageLayout';
 import CreateTaskForm from '@/components/CreateTaskForm';
 import { ZapIcon } from '@/components/Icons';
 
 export default function CreateTaskPage() {
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-50 selection:bg-blue-500/30">
-            <Navbar />
-
+        <PageLayout>
             <main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-3xl mx-auto">
                     <div className="mb-10 text-center">
@@ -27,6 +25,6 @@ export default function CreateTaskPage() {
                     <CreateTaskForm />
                 </div>
             </main>
-        </div>
+        </PageLayout>
     );
 }

@@ -1,11 +1,10 @@
 import React from 'react';
-import Navbar from '@/components/Navbar';
+import PageLayout from '@/components/PageLayout';
 import TaskList from '@/components/TaskList';
 
 const BrowsePage = () => {
     return (
-        <div className="min-h-screen bg-slate-900 text-slate-50 selection:bg-blue-500/30">
-            <Navbar />
+        <PageLayout>
             <main className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-7xl mx-auto">
                     <div className="mb-10">
@@ -20,7 +19,7 @@ const BrowsePage = () => {
                     <TaskList />
                 </div>
             </main>
-        </div>
+        </PageLayout>
     );
 };
 
